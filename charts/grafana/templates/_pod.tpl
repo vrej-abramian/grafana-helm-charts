@@ -181,6 +181,65 @@ imagePullSecrets:
 enableServiceLinks: {{ .Values.enableServiceLinks }}
 {{- end }}
 containers:
+{{/*
+    # MongoDB Plugin service container Block Start #
+*/}}
+  {{- if .Values.mongodbPlugin.enabled }}
+  - env:
+      {{- range $key, $value := .Values.mongodbPlugin.env }}
+    - name: "{{ tpl $key $ }}"
+      value: "{{ tpl (print $value) $ }}"
+      {{- end }}
+    - name: GRAFANA_SHARED_PLUGINS_PATH
+      value: {{ (get .Values "grafana.ini").paths.plugins }}
+      {{- if .Values.mongodbPlugin.image.sha }}
+    image: "{{ .Values.mongodbPlugin.image.repository }}:{{ .Values.mongodbPlugin.image.tag }}@sha256:{{ .Values.mongodbPlugin.image.sha }}"
+      {{- else }}
+    image: "{{ .Values.mongodbPlugin.image.repository }}:{{ .Values.mongodbPlugin.image.tag }}"
+      {{- end }}
+    imagePullPolicy: {{ .Values.mongodbPlugin.imagePullPolicy | default "IfNotPresent" }}
+    name: "{{ .Values.mongodbPlugin.name }}"
+    ports:
+      - containerPort: 3333
+        name: mongodb-plugin
+        protocol: TCP
+    livenessProbe:
+      failureThreshold: 3
+      tcpSocket:
+        port: 3333
+      initialDelaySeconds: 60
+      periodSeconds: 30
+      successThreshold: 1
+      timeoutSeconds: 30
+    readinessProbe:
+      failureThreshold: 5
+      tcpSocket:
+        port: 3333
+      periodSeconds: 20
+      successThreshold: 1
+      timeoutSeconds: 2
+    resources:
+      limits:
+        cpu: {{ .Values.mongodbPlugin.resources.limits.cpu | quote }}
+        memory: {{ .Values.mongodbPlugin.resources.limits.memory | quote }}
+      requests:
+        cpu: {{ .Values.mongodbPlugin.resources.requests.cpu | quote }}
+        memory: {{ .Values.mongodbPlugin.resources.requests.memory | quote }}
+      {{- if .Values.mongodbPlugin.securityContext }}          
+    securityContext:
+      {{- toYaml .Values.mongodbPlugin.securityContext | nindent 6 }}
+      {{- end }}
+    volumeMounts:
+    - name: storage
+      mountPath: {{ (get .Values "grafana.ini").paths.data }}
+        {{- if .Values.persistence.subPath }}
+      subPath: {{ tpl .Values.persistence.subPath . }}
+        {{- end }}
+  {{- end }} {{/* END of if .Values.mongodbPlugin.enabled */}}
+
+{{/*
+    # MongoDB Plugin service container Block End #
+*/}}
 {{- if .Values.sidecar.dashboards.enabled }}
   - name: {{ template "grafana.name" . }}-sc-dashboard
     {{- if .Values.sidecar.image.sha }}
@@ -656,7 +715,7 @@ volumes:
 {{- if and .Values.persistence.enabled (eq .Values.persistence.type "pvc") }}
   - name: storage
     persistentVolumeClaim:
-      claimName: {{ tpl (.Values.persistence.existingClaim .) | default (include "grafana.fullname" .) }}
+      claimName: {{ .Values.persistence.existingClaim | default (include "grafana.fullname" .) }}
 {{- else if and .Values.persistence.enabled (eq .Values.persistence.type "statefulset") }}
 # nothing
 {{- else }}
