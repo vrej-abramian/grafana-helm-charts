@@ -21,7 +21,7 @@ ARG PACKAGES_TO_INSTALL
 ARG WORKINGDIRECTORY
 
 WORKDIR ${WORKINGDIRECTORY}
-RUN apk add ${PACKAGES_TO_INSTALL}      && \
+RUN apk add --no-cache ${PACKAGES_TO_INSTALL}      && \
       rm -rf /var/cache/apk/*           && \
       git clone ${MONGO_PLUGIN_GIT_URL} && \
       cd ${MONGO_PLUGIN_GIT_DIR}        && \
