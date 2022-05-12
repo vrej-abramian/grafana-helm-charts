@@ -4,7 +4,8 @@ rbac:
   # useExistingRole: name-of-some-(cluster)role
   pspEnabled: true
   pspUseAppArmor: true
-  namespaced: false
+  ##namespaced: false
+  namespaced: true
   extraRoleRules: []
   # - apiGroups: []
   #   resources: []
@@ -15,7 +16,8 @@ rbac:
   #   verbs: []
 serviceAccount:
   create: true
-  name:
+  ##name:
+  name: fresh-grafana-prod
   nameTest:
 ## Service account annotations. Can be templated.
 #  annotations:
@@ -151,6 +153,7 @@ podPortName: grafana
 service:
   enabled: true
   type: ClusterIP
+  ##type: NodePort
   port: 80
   targetPort: 3000
     # targetPort: 4181 To be used with a proxy extraContainer
@@ -185,7 +188,8 @@ hostAliases: []
   #     - "my.host.com"
 
 ingress:
-  enabled: false
+  ##enabled: false
+  enabled: true
   # For Kubernetes >= 1.18 you should specify the ingress-controller via the field ingressClassName
   # See https://kubernetes.io/blog/2020/04/02/improvements-to-the-ingress-api-in-kubernetes-1.18/#specifying-the-class-of-an-ingress
   # ingressClassName: nginx
@@ -200,7 +204,8 @@ ingress:
   pathType: Prefix
 
   hosts:
-    - chart-example.local
+    - fresh-prod.grafana.igentify.net
+
   ## Extra paths to prepend to every host configuration. This is useful when working with annotation based services.
   extraPaths: []
   # - path: /*
@@ -222,13 +227,20 @@ ingress:
   #    hosts:
   #      - chart-example.local
 
-resources: {}
-#  limits:
-#    cpu: 100m
-#    memory: 128Mi
-#  requests:
-#    cpu: 100m
-#    memory: 128Mi
+#resources: {}
+##  limits:
+##    cpu: 100m
+##    memory: 128Mi
+##  requests:
+##    cpu: 100m
+##    memory: 128Mi
+resources:
+  limits:
+    cpu: 1500m
+    memory: 1000Mi
+  requests:
+    cpu: 500m
+    memory: 300Mi
 
 ## Node labels for pod assignment
 ## ref: https://kubernetes.io/docs/user-guide/node-selection/
@@ -279,9 +291,12 @@ extraContainerVolumes: []
 ## Enable persistence using Persistent Volume Claims
 ## ref: http://kubernetes.io/docs/user-guide/persistent-volumes/
 ##
+# 'MongoDB Plugin service container (MongoDB Plugin availability)' functionality is dependent to the Grafana data volume.
+# ATM type: pvc, enabled: true is tested and working!
 persistence:
   type: pvc
-  enabled: false
+  ##enabled: false
+  enabled: true
   # storageClassName: default
   accessModes:
     - ReadWriteOnce
@@ -339,7 +354,8 @@ adminUser: admin
 # Use an existing secret for the admin user.
 admin:
   ## Name of the secret. Can be templated.
-  existingSecret: ""
+  # This secret should be available in the namespace.
+  existingSecret: "fresh-grafana-prod-admin"
   userKey: admin-user
   passwordKey: admin-password
 
@@ -377,7 +393,16 @@ admin:
 ## 6. uncomment the annotation section in the serviceAccount: above
 ## make sure to replace arn:aws:iam::123456789000:role/iam-role-name-here with your role arn
 
-env: {}
+##env: {}
+env:
+  GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS: "grafana-mongodb-datasource"
+  GF_SERVER_DOMAIN: "fresh-prod.grafana.igentify.net"
+  GF_SERVER_ROOT_URL: "https://fresh-prod.grafana.igentify.net"
+  GF_SERVER_SERVE_FROM_SUB_PATH: false
+  GF_SECURITY_COOKIE_SECURE: true
+  GF_AUTH_LOGIN_COOKIE_NAME: "grafana_session_prod"
+  GF_AUTH_ENABLE_GZIP: true
+  GF_USERS_AUTO_ASSIGN_ORG: false
 
 ## "valueFrom" environment variable references that will be added to deployment pods. Name is templated.
 ## ref: https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.19/#envvarsource-v1-core
@@ -473,9 +498,10 @@ lifecycleHooks: {}
 
 ## Pass the plugins you want installed as a list.
 ##
-plugins: []
-  # - digrich-bubblechart-panel
-  # - grafana-clock-panel
+##plugins: []
+plugins:
+  - grafana-piechart-panel
+  - michaeldmoore-multistat-panel
 
 ## Configure grafana datasources
 ## ref: http://docs.grafana.org/administration/provisioning/#datasources
@@ -664,10 +690,12 @@ sidecar:
   readinessProbe: {}
   livenessProbe: {}
   dashboards:
-    enabled: false
+    ##enabled: false
+    enabled: true
     SCProvider: true
     # label that the configmaps with dashboards are marked with
-    label: grafana_dashboard
+    ##label: grafana_dashboard
+    label: fresh-grafana_dashboard
     # value of label that the configmaps with dashboards are set to
     labelValue: null
     # folder in the pod that should hold the collected dashboards (unless `defaultFolderName` is set)
@@ -677,7 +705,8 @@ sidecar:
     # Namespaces list. If specified, the sidecar will search for config-maps/secrets inside these namespaces.
     # Otherwise the namespace in which the sidecar is running will be used.
     # It's also possible to specify ALL to search in all namespaces.
-    searchNamespace: null
+    ##searchNamespace: null
+    searchNamespace: fresh-grafana-prod
     # Method to use to detect ConfigMap changes. With WATCH the sidecar will do a WATCH requests, with SLEEP it will list all ConfigMaps, then sleep for 60 seconds.
     watchMethod: WATCH
     # search in configmap, secret or both
@@ -718,15 +747,18 @@ sidecar:
     # Sets the size limit of the dashboard sidecar emptyDir volume
     sizeLimit: {}
   datasources:
-    enabled: false
+    ##enabled: false
+    enabled: true
     # label that the configmaps with datasources are marked with
-    label: grafana_datasource
+    ##label: grafana_datasource
+    label: fresh-grafana_dashboard
     # value of label that the configmaps with datasources are set to
     labelValue: null
     # If specified, the sidecar will search for datasource config-maps inside this namespace.
     # Otherwise the namespace in which the sidecar is running will be used.
     # It's also possible to specify ALL to search in all namespaces
-    searchNamespace: null
+    ##searchNamespace: null
+    searchNamespace: fresh-grafana-prod
     # Method to use to detect ConfigMap changes. With WATCH the sidecar will do a WATCH requests, with SLEEP it will list all ConfigMaps, then sleep for 60 seconds.
     watchMethod: WATCH
     # search in configmap, secret or both
@@ -740,15 +772,18 @@ sidecar:
     # Sets the size limit of the datasource sidecar emptyDir volume
     sizeLimit: {}
   plugins:
-    enabled: false
+    ##enabled: false
+    enabled: true
     # label that the configmaps with plugins are marked with
-    label: grafana_plugin
+    ##label: grafana_plugin
+    label: fresh-grafana_dashboard
     # value of label that the configmaps with plugins are set to
     labelValue: null
     # If specified, the sidecar will search for plugin config-maps inside this namespace.
     # Otherwise the namespace in which the sidecar is running will be used.
     # It's also possible to specify ALL to search in all namespaces
-    searchNamespace: null
+    ##searchNamespace: null
+    searchNamespace: fresh-grafana-prod
     # Method to use to detect ConfigMap changes. With WATCH the sidecar will do a WATCH requests, with SLEEP it will list all ConfigMaps, then sleep for 60 seconds.
     watchMethod: WATCH
     # search in configmap, secret or both
@@ -762,13 +797,16 @@ sidecar:
     # Sets the size limit of the plugin sidecar emptyDir volume
     sizeLimit: {}
   notifiers:
-    enabled: false
+    ##enabled: false
+    enabled: true
     # label that the configmaps with notifiers are marked with
-    label: grafana_notifier
+    ##label: grafana_notifier
+    label: fresh-grafana_dashboard
     # If specified, the sidecar will search for notifier config-maps inside this namespace.
     # Otherwise the namespace in which the sidecar is running will be used.
     # It's also possible to specify ALL to search in all namespaces
-    searchNamespace: null
+    ##searchNamespace: null
+    searchNamespace: fresh-grafana-prod
     # search in configmap, secret or both
     resource: both
     # Sets the size limit of the notifier sidecar emptyDir volume
@@ -893,3 +931,27 @@ extraObjects: []
   #     data:
   #       - key: grafana-admin-password
   #         name: adminPassword
+
+######################################
+### Grafana MongoDB Plugin Service ###
+mongodbPlugin:
+  enabled: true
+  replicas: 1
+  image:
+    repository: docker-internal.artifactory.igentify.net/fresh-grafana-mongodb-datasource
+    tag: 0.1
+    sha: ""
+    pullPolicy: IfNotPresent # Default: 'IfNotPresent'
+  env:
+    DESCRIPTION: "Unofficial Grafana MongoDB Plugin"
+  name: mongodb-grafana-standalone
+  resources:
+    limits:
+      cpu: "1000m"
+      memory: "1000Mi"
+    requests:
+      cpu: "200m"
+      memory: "200Mi"
+  securityContext:
+    runAsNonRoot: false
+    runAsUser: 0
